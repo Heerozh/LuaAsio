@@ -10,7 +10,7 @@ Lightweight, low resource usage, available for embedded devices.
 
 You need ```Boost.Asio (Header Only) ``` to compile this.
 
-Tested on windows, linux, openwrt.
+<!-- Tested on windows, ubuntu, openwrt. -->
 
 # Usage
 
@@ -71,7 +71,7 @@ If you want to use multithreading, Client side can be simply achieved by create 
 ./build.bat
 ```
 
-## Ubuntu
+## Linux
 
 ```
 ./build.sh
