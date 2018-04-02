@@ -83,17 +83,25 @@ end
 do io.write('---- C Asio Test ----')
 
     -- non-ip address should return nil
-    assert( not asio.server('localhost', 1234) )
+    assert( not asio.server('localhost', 1234) ) 
     -- not in light thread 
-    assert( pcall( asio.connect, 'localhost', 1234) == false )
+    assert( pcall( asio.connect, 'localhost', 1234) == false ) 
+    -- connect faile
+    local con = 'not set con'
+    asio.spawn_light_thread(function() 
+        con = asio.connect('0.0.0.1', '1234')
+    end)
+    asio.run()   
+    assert(con == nil, con)
 
-
+    -- server
     function connection_th(con)
-        print('sv')
-        local data = con:read(5)  
-        print(data)        
+        print('appected.')
+        local data, err = con:read(5)  
+        print('server readed:', data, err)        
         con:write(data .. '-pong')  
         con:close()
+        print('server closed', data)
     end
     
     local s = asio.server('127.0.0.1', 1234, function(con) 
@@ -101,17 +109,25 @@ do io.write('---- C Asio Test ----')
     end)
 
     local ping_send = function(text) 
-        local con = asio.connect('localhost', '1234')
-        print(con.__index)
-        con:write(text)
-        con:read(10)
+        local con, e = asio.connect('localhost', '1234')
+        local ok, e = con:write(text)
+        print('client write ok:', ok, e)
+        local data, err = con:read(10)
+        print('client readed:', data, err)                
         con:close()
+        --asio.stop()
+        print('client closed', text)
+        if text =='stop_' then
+            s = nil
+            collectgarbage('collect')
+        end
     end
     
     asio.spawn_light_thread(ping_send, 'ping1')
     asio.spawn_light_thread(ping_send, 'ping2')
-    
-    asio.run()
+    asio.spawn_light_thread(ping_send, 'stop_')
+    print('run')
+    asio.run() 
 
 end io.write(' \t\t[OK]\n')
 
