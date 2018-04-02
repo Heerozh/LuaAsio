@@ -4,6 +4,7 @@ local co_status = coroutine.status
 local yield = coroutine.yield
 local resume = coroutine.resume
 local running = coroutine.running
+local setmetatable = setmetatable
 
 local ok, new_table = pcall(require, "table.new")
 if not ok then new_table = function() return {} end end
@@ -14,7 +15,7 @@ local ok, ffi = pcall(require, "ffi")
 assert(ok, 'need use luajit yet')
 
 ok, asio_c = pcall(ffi.load, 'asio.so')
-if not ok then asio_c = pcall(ffi.load, 'asio.dll') end
+if not ok then _, asio_c = pcall(ffi.load, 'asio.dll') end
 assert(asio_c, 'load c lib failed.')
 
 local C = ffi.C
@@ -41,7 +42,6 @@ ffi.cdef[[
 ------------------thread------------------------
 
 local _M = {}
-_M.__index = _M
 
 local th_tbl = new_table(100, 0)
 local th_free_id = new_table(100, 0)
@@ -99,7 +99,10 @@ end
 
 function _M.spawn_light_thread(func, ...) 
     local tid, th = _create_th()
-    resume(th, tid, func, ...)
+    local ok, err = resume(th, tid, func, ...)
+    if not ok then
+        print( debug.traceback( th, err ))
+    end
     return th
 end
 
@@ -107,6 +110,7 @@ end
 ------------------connection------------------------
 
 local conn_M = {}
+local conn_mt = { __index = conn_M }
 
 function conn_M:get_original_dst(data)
     return asio_c.get_original_dst(self.cpoint)
@@ -115,7 +119,7 @@ end
 function conn_M:read(n)
     local th = running()
     assert(th, 'need be called in light thread.')
-    asio_c.asio_conn_read(self.cpointid, n, th_to_id[th])
+    asio_c.asio_conn_read(self.cpoint, n, th_to_id[th])
     local ok, data = yield()
     if ok then
         return data
@@ -127,7 +131,7 @@ end
 function conn_M:write(data)
     local th = running()
     assert(th, 'need be called in light thread.')
-    asio_c.asio_conn_write(self.cpoint, data, th_to_id[th])
+    asio_c.asio_conn_write(self.cpoint, data, #data, th_to_id[th])
     local ok, err_msg = yield()
     if ok then
         return true
@@ -145,9 +149,9 @@ local handler_tbl = {}
 
 local function _make_connection(cpoint)
     local con = {
-        __index = connection_M,
         cpoint = ffi.gc(cpoint, asio_c.asio_delete_connection),
     }
+    setmetatable(con, conn_mt)
     return con
 end
 
@@ -161,7 +165,10 @@ local function _evt_disp(evt)
     elseif evt.type == EVT_CONTINUE then
 
         local th = th_tbl[evt.dest_id]
-        resume(th, evt.source, ffi.string(evt.data, evt.data_len))
+        local ok, err = resume(th, evt.source, ffi.string(evt.data, evt.data_len))
+        if not ok then
+            print( debug.traceback( th, err ))
+        end
 
     end
 end
@@ -179,7 +186,12 @@ end
 
 function _M.server(ip, port, accept_handler)
     handler_tbl[port] = accept_handler
-    return ffi.gc(asio_c.asio_new_server(ip, port), asio_c.asio_delete_server)
+    local sv = asio_c.asio_new_server(ip, port)
+    if sv == nil then 
+        return nil 
+    else
+        return ffi.gc(sv, asio_c.asio_delete_server)
+    end
 end
 
 function _M.run()

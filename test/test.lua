@@ -2,7 +2,7 @@
 local asio = require 'asio'
 
 -- test create and remove thread
-do print('----Light Thread Test----\n')
+do io.write('---- Light Thread Test ----')
 
     -- create 3 thread
     assert(asio._get_free_tid() == 1)
@@ -58,4 +58,62 @@ do print('----Light Thread Test----\n')
     coroutine.resume(th3)
     assert(asio._get_free_tid() == 3)
 
-end print('==Light Thread Test OK!==\n')
+end io.write(' \t[OK]\n')
+
+--------------------------------------------------
+local ffi = require("ffi")
+ffi.cdef[[
+void Sleep(int ms);
+int poll(struct pollfd *fds, unsigned long nfds, int timeout);
+]]
+
+local sleep
+if ffi.os == "Windows" then
+  function sleep(s)
+    ffi.C.Sleep(s*1000)
+  end
+else
+  function sleep(s)
+    ffi.C.poll(nil, 0, s*1000)
+  end
+end
+--------------------------------------------------
+
+--test network
+do io.write('---- C Asio Test ----')
+
+    -- non-ip address should return nil
+    assert( not asio.server('localhost', 1234) )
+    -- not in light thread 
+    assert( pcall( asio.connect, 'localhost', 1234) == false )
+
+
+    function connection_th(con)
+        print('sv')
+        local data = con:read(5)  
+        print(data)        
+        con:write(data .. '-pong')  
+        con:close()
+    end
+    
+    local s = asio.server('127.0.0.1', 1234, function(con) 
+        asio.spawn_light_thread(connection_th, con) 
+    end)
+
+    local ping_send = function(text) 
+        local con = asio.connect('localhost', '1234')
+        print(con.__index)
+        con:write(text)
+        con:read(10)
+        con:close()
+    end
+    
+    asio.spawn_light_thread(ping_send, 'ping1')
+    asio.spawn_light_thread(ping_send, 'ping2')
+    
+    asio.run()
+
+end io.write(' \t\t[OK]\n')
+
+
+print('All Tests passed.')

@@ -4,7 +4,7 @@
 
 Simple transparent non-blocking, high concurrency I/O for Luajit. 
 
-There are no multithreading and no callbacks. Asynchronous happens when you perform a non-blocking operation.
+There are no callbacks, Asynchronous happens when you perform a non-blocking operation.
 
 Lightweight, low resource usage, available for embedded devices.
 
@@ -18,21 +18,19 @@ Server side:
 ```
 local asio = require 'asio'
 
-function accept_handler(con)
+function connection_th(con)
     -- Issues a synchronous, but non-blocking I/O operation.
     local data = con:read(5)  
-    print(data)  
 
     -- Still non-blocking
     con:write(data .. '-pong')  
-    print(data .. '-pong send ok.')
 
     con:close()
 end
 
 local s = asio.server('localhost', 1234, function(con) 
     -- light threads running asynchronously at various I/O operation.
-    asio.spawn_light_thread(accept_handler, con) 
+    asio.spawn_light_thread(connection_th, con) 
 end)
 
 -- This event loop is blocked during code execution
@@ -44,7 +42,7 @@ Client side:
 local asio = require 'asio'
 
 local ping_send = function(text) 
-    local con = asio.connect('localhost', 1234) 
+    local con = asio.connect('127.0.0.1', '1234') 
     con:write(text)
     con:read(10)
     con:close()
@@ -52,27 +50,9 @@ end
 
 asio.spawn_light_thread(ping_send, 'ping1')
 asio.spawn_light_thread(ping_send, 'ping2')
-asio.spawn_light_thread(ping_send, 'ping3')
-asio.spawn_light_thread(ping_send, 'ping4')
 
 asio.run()
 ```
-
-You will see server output like this: 
-
-Each line fully printed, but random order.
-
-````
-ping1
-ping3
-ping2
-ping3-pong send ok.
-ping4
-ping1-pong send ok.
-ping2-pong send ok.
-ping4-pong send ok.
-````
-
 
 # Light Thread & non-blocking 
 
@@ -80,6 +60,8 @@ Your code needs to execute in Light Thread, actually Light Threads are Lua corou
 
 When goes to a non-blocking operation, the current Light Thread will wait for completion (block), and then it switches to the other available Light Thread to continue execution, or handle new connection. 
 
+If you want to use multithreading, Client side can be simply achieved by create a new lua state in a new thread (use like torch/threads); Server side not supported yet (but easy to implement).
+<!-- Server side has **threads** parameters in **asio.server** function. -->
 
 # Building
 
@@ -92,41 +74,51 @@ When goes to a non-blocking operation, the current Light Thread will wait for co
 
 # Reference
 
-**holder = asio.server(ip, point)**
+**holder = asio.server(ip, point, accept_handler)**
 
-Listening port starts accepting connections.
+Listening port starts accepting connections. 
 
-Server are automatically closed when the holder are garbage collected.
+**accept_handler(conn)** is your callback function when new connection is established. If you want to perform non-blocking operations on **conn**, you need **spawn_light_thread** first.
+
+<!-- If **threads** greater than 1, will create a thread pool and randomly assign Light Threads to one of them. There is no inter-thread communication method, so your need other lua moudle to communication between each Light Thread.  -->
+
+Server are automatically closed when the return value (**holder**) are garbage collected.
 
 ----
 
 **conn, err_msg = asio.connect(host, port)**
 
-Connect to the host port.
+Connect to the host port. This is a non-blocking operation.
 
-If there are no errors, return **con(module)**; otherwise, returns **[nil, err_msg(lua str)]**.
+If there are no errors, return **conn(module)**; otherwise, returns **nil, err_msg(lua str)**.
 
 ----
 
 **data, err_msg = conn:read(size)**
 
-Read binary data of a specified size.
+Read binary data of a specified size. This is a non-blocking operation.
 
-If there are no errors, returns **data(lua str)**; otherwise, returns **[nil, err_msg(lua str)]**.
+If there are no errors, return **data(lua str)**; otherwise, returns **nil, err_msg(lua str)**.
 
 ----
 
 **ok, err_msg = conn:write(data)**
 
-Write the data(lua str) to connection.
+Write the data(lua str) to connection. This is a non-blocking operation.
 
-If there are no errors, return **true**; otherwise, returns **[nil, err_msg(lua str)]**.
+If there are no errors, return **true**; otherwise, returns **nil, err_msg(lua str)**.
 
 ----
 
 **nil = conn:close()**
 
 Close a connection. No returns.
+
+----
+
+**asio.spawn_light_thread(function, arg1, arg2, ...)**
+
+Create and run a light thread.
 
 
 # License
