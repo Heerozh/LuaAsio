@@ -28,12 +28,16 @@ ffi.cdef[[
         const char* data;
         size_t data_len;
     } event_message;
-    event_message asio_get(void);
+    event_message* asio_get(int wait_sec);
+    bool asio_stopped();
 
-    void* asio_new_connect(const char* host, const char* port, int dest_id);
+    void* asio_new_connect(const char* host, const char* port,
+        int dest_id);
     void asio_delete_connection(void* p);
     void asio_conn_read(void* p, size_t size, int dest_id);
-    void asio_conn_write(void* p, const char* data, size_t size, int dest_id);
+    void asio_conn_write(void* p, const char* data, size_t size, 
+        int dest_id);
+    void asio_conn_close(void* p);
 
     void* asio_new_server(const char* ip, int port);
     void asio_delete_server(void* p);
@@ -140,6 +144,11 @@ function conn_M:write(data)
     end
 end
 
+function conn_M:close()
+    asio_c.asio_conn_close(self.cpoint)
+    self.cpoint = nil
+    setmetatable(self, nil)
+end
 ------------------asio------------------------
 
 local EVT_ACCEPT = 1
@@ -165,10 +174,14 @@ local function _evt_disp(evt)
     elseif evt.type == EVT_CONTINUE then
 
         local th = th_tbl[evt.dest_id]
-        local ok, err = resume(th, evt.source, ffi.string(evt.data, evt.data_len))
+        local source = evt.source ~= nil and evt.source or nil
+        local data = ffi.string(evt.data, evt.data_len)
+
+        local ok, err = resume(th, source, data)
         if not ok then
             print( debug.traceback( th, err ))
         end
+        --read write的error应该直接关闭th转到close事件
 
     end
 end
@@ -178,7 +191,7 @@ function _M.connect(host, port)
     assert(th, 'need be called in light thread.')
     asio_c.asio_new_connect(host, port, th_to_id[th])
     local cpoint, msg = yield()
-    if not cpoint then return nil, msg end
+    if cpoint == nil then return nil, msg end
 
     local con = _make_connection(cpoint)
     return con
@@ -195,9 +208,18 @@ function _M.server(ip, port, accept_handler)
 end
 
 function _M.run()
-
     while true do
-        local evt = asio_c.asio_get()
+        local evt = asio_c.asio_get(-1)
+        if evt ~= nil then
+            _evt_disp(evt)
+        end
+        if asio_c.asio_stopped() then break end
+    end
+end
+
+function _M.run_once(wait_sec)
+    local evt = asio_c.asio_get(wait_sec or -1)
+    if evt ~= nil then
         _evt_disp(evt)
     end
 end
