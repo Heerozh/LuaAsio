@@ -67,10 +67,21 @@ If you want to use multithreading, Client side can be simply achieved by create 
 
 ## Windows
 
+```
+./build.bat
+```
+
 ## Ubuntu
 
+```
+./build.sh
+```
 
 # Unit Test
+
+```
+./test/luajit ./test/test.lua
+```
 
 # Reference
 
