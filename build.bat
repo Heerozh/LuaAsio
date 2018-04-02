@@ -10,7 +10,7 @@ del *.ilk
 @set LJLINK=link /nologo
 
 %LJCOMPILE% /Zi  /I ".\include" /I \ *.cpp
-%LJLINK% /DLL /DEBUG /out:asio.dll *.obj
+%LJLINK% /DLL /DEBUG /OPT:REF /OPT:ICF /out:asio.dll *.obj
 
 del *.obj
 del *.ilk
