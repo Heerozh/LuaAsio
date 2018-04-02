@@ -1,0 +1,1 @@
+g++ -g -O3 -shared -fPIC luaAsio.cpp -o asio.so 

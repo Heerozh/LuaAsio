@@ -20,14 +20,14 @@ assert(asio_c, 'load c lib failed.')
 local C = ffi.C
 
 ffi.cdef[[
-    struct event_message_for_ffi {
+    typedef struct event_message_for_ffi {
         char type;
         int dest_id;
         void* source;
         const char* data;
         size_t data_len;
-    };
-    event_message_for_ffi asio_get(void);
+    } event_message;
+    event_message asio_get(void);
 
     void* asio_new_connect(const char* host, const char* port, int dest_id);
     void asio_delete_connection(void* p);
@@ -35,26 +35,86 @@ ffi.cdef[[
     void asio_conn_write(void* p, const char* data, size_t size, int dest_id);
 
     void* asio_new_server(const char* ip, int port);
-    void asio_delete_server(void* p)
+    void asio_delete_server(void* p);
 ]]
 
-----------------------------------------------------
+------------------thread------------------------
+
+local _M = {}
+_M.__index = _M
 
 local th_tbl = new_table(100, 0)
 local th_free_id = new_table(100, 0)
 local th_to_id = new_table(0, 100)
 
+function _M._get_tid(th)
+    return th_to_id[th]
+end
+
+function _M._get_free_tid()
+    local last_free = #th_free_id
+    local tid
+    if last_free == 0 then
+        tid = #th_tbl + 1
+    else
+        tid = th_free_id[last_free]
+    end
+    return tid, last_free
+end
+
+function _M._use_tid(tid, last_free, th)
+    if last_free > 0 then
+        th_free_id[last_free] = nil
+    end
+    th_tbl[tid] = th
+    th_to_id[th] = tid
+end
+
+function _M._remove_th(tid)
+    if not th_tbl[tid] then return end
+    -- local is_thtbl_array = #th_free_id == 0
+    -- local add_free = not is_thtbl_array or tid != (#th_tbl - 1)
+
+    local th = th_tbl[tid]
+    th_to_id[th] = nil    
+    th_tbl[tid] = nil
+    --if add_free then 
+    th_free_id[#th_free_id + 1] = tid
+    --end
+end
+
+local function _light_thread(tid, func, ...)
+    func(...)
+    _M._remove_th(tid)
+end
+
+local function _create_th()
+    local tid, useid = _M._get_free_tid()
+    -- todo: thread pool assign here
+    local th = co_create(_light_thread)
+    _M._use_tid(tid, useid, th)
+
+    return tid, th
+end
+
+function _M.spawn_light_thread(func, ...) 
+    local tid, th = _create_th()
+    resume(th, tid, func, ...)
+    return th
+end
+
+
 ------------------connection------------------------
 
-local connection_M = {}
+local conn_M = {}
 
-function _M:get_original_dst(data)
+function conn_M:get_original_dst(data)
     return asio_c.get_original_dst(self.cpoint)
 end
 
-function _M:read(n)
+function conn_M:read(n)
     local th = running()
-    assert(th)
+    assert(th, 'need be called in light thread.')
     asio_c.asio_conn_read(self.cpointid, n, th_to_id[th])
     local ok, data = yield()
     if ok then
@@ -64,9 +124,9 @@ function _M:read(n)
     end
 end
 
-function _M:write(data)
+function conn_M:write(data)
     local th = running()
-    assert(th)
+    assert(th, 'need be called in light thread.')
     asio_c.asio_conn_write(self.cpoint, data, th_to_id[th])
     local ok, err_msg = yield()
     if ok then
@@ -74,48 +134,6 @@ function _M:write(data)
     else
         return nil, err_msg
     end
-end
-
-------------------thread------------------------
-
-local _M = {}
-_M.__index = _M
-
-local function _remove_th(tid)
-    if not th_tbl[tid] then return end
-
-    local th = th_tbl[tid]
-    th_to_id[th] = nil    
-    th_tbl[tid] = nil
-    th_free_id[#th_free_id + 1] = tid
-end
-
-local function _light_thread(tid, func, ...)
-    func(...)
-    _remove_th(tid)
-end
-
-local function _create_th()
-    local last_free = #th_free_id
-    local tid
-    if last_free == 0 then
-        tid = #th_tbl + 1
-    else
-        tid = th_free_id[last_free]
-        th_free_id[last_free] = nil
-    end
-
-    local th = co_create(_light_thread)
-    th_tbl[tid] = th
-    th_to_id[th] = tid
-
-    return tid, th
-end
-
-function _M.spawn_light_thread(func, ...) 
-    local tid, th = _create_th()
-    resume(th, tid, func, ...)
-    return th
 end
 
 ------------------asio------------------------
@@ -150,7 +168,7 @@ end
 
 function _M.connect(host, port)
     local th = running()
-    assert(th)
+    assert(th, 'need be called in light thread.')
     asio_c.asio_new_connect(host, port, th_to_id[th])
     local cpoint, msg = yield()
     if not cpoint then return nil, msg end
