@@ -207,6 +207,10 @@ function _M.server(ip, port, accept_handler)
     end
 end
 
+function _M.destory_server(server_holder)
+    asio_c.asio_delete_server(ffi.gc(server_holder, nil))
+end
+
 function _M.run()
     while true do
         local evt = asio_c.asio_get(-1)

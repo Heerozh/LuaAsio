@@ -104,12 +104,12 @@ do io.write('---- C Asio Test ----')
         print('server closed', data)
     end
     
-    local s = asio.server('127.0.0.1', 1234, function(con) 
+    local s = asio.server('127.0.0.1', 31234, function(con) 
         asio.spawn_light_thread(connection_th, con) 
     end)
 
     local ping_send = function(text) 
-        local con, e = asio.connect('localhost', '1234')
+        local con, e = asio.connect('localhost', '31234')
         local ok, e = con:write(text)
         print('client write ok:', ok, e)
         local data, err = con:read(10)
@@ -118,8 +118,8 @@ do io.write('---- C Asio Test ----')
         --asio.stop()
         print('client closed', text)
         if text =='stop_' then
+            asio.destory_server(s)
             s = nil
-            collectgarbage('collect')
         end
     end
     
