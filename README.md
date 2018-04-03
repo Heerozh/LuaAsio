@@ -1,8 +1,6 @@
 # LuaAsio
 
-***Under construction***
-
-Simple transparent non-blocking, high concurrency I/O for Luajit. 
+Simple transparent non-blocking, high concurrency I/O for Luajit.
 
 There are no callbacks, Asynchronous happens when you perform a non-blocking operation.
 
@@ -10,7 +8,7 @@ Lightweight, low resource usage, available for embedded devices.
 
 You need ```Boost.Asio (Header Only) ``` to compile this.
 
-<!-- Tested on windows, ubuntu, openwrt. -->
+Tested on windows<!-- , ubuntu, openwrt.  -->
 
 # Usage
 
@@ -20,17 +18,17 @@ local asio = require 'asio'
 
 function connection_th(con)
     -- Issues a synchronous, but non-blocking I/O operation.
-    local data = con:read(5)  
+    local data = con:read(5)
 
     -- Still non-blocking
-    con:write(data .. '-pong')  
+    con:write(data .. '-pong')
 
     con:close()
 end
 
-local s = asio.server('localhost', 1234, function(con) 
+local s = asio.server('localhost', 1234, function(con)
     -- light threads running asynchronously at various I/O operation.
-    asio.spawn_light_thread(connection_th, con) 
+    asio.spawn_light_thread(connection_th, con)
 end)
 
 -- This event loop is blocked during code execution
@@ -41,8 +39,8 @@ Client side:
 ```
 local asio = require 'asio'
 
-local ping_send = function(text) 
-    local con = asio.connect('127.0.0.1', '1234') 
+local ping_send = function(text)
+    local con = asio.connect('127.0.0.1', '1234')
     con:write(text)
     con:read(10)
     con:close()
@@ -54,13 +52,13 @@ asio.spawn_light_thread(ping_send, 'ping2')
 asio.run()
 ```
 
-# Light Thread & non-blocking 
+# Light Thread & non-blocking
 
 Your code needs to execute in Light Thread, actually Light Threads are Lua coroutine that all running in one thread, so you don't have to worry about context switching overhead and race conditions.
 
-When goes to a non-blocking operation, the current Light Thread will wait for completion (block), and then it switches to the other available Light Thread to continue execution, or handle new connection. 
+When goes to a non-blocking operation, the current Light Thread will wait for completion (block), and then it switches to the other available Light Thread to continue execution, or handle new connection.
 
-If you want to use multithreading, Client side can be simply achieved by create a new lua state in a new thread (use like torch/threads); Server side not supported yet (but easy to implement).
+If you want to use multithreading, Client side can be simply achieved by multiple Lua State (use like torch/threads); Server side not supported yet (but easy to implement by Lua State pool).
 <!-- Server side has **threads** parameters in **asio.server** function. -->
 
 # Building
@@ -87,7 +85,7 @@ If you want to use multithreading, Client side can be simply achieved by create 
 
 **holder = asio.server(ip, point, accept_handler)**
 
-Listening port starts accepting connections. 
+Listening port starts accepting connections.
 
 **accept_handler(conn)** is your callback function when new connection is established. If you want to perform non-blocking operations on **conn**, you need **spawn_light_thread** first.
 
