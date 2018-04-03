@@ -1,6 +1,6 @@
 
 local co_create = coroutine.create
-local co_status = coroutine.status 
+local co_status = coroutine.status
 local yield = coroutine.yield
 local resume = coroutine.resume
 local running = coroutine.running
@@ -35,7 +35,7 @@ ffi.cdef[[
         int dest_id);
     void asio_delete_connection(void* p);
     void asio_conn_read(void* p, size_t size, int dest_id);
-    void asio_conn_write(void* p, const char* data, size_t size, 
+    void asio_conn_write(void* p, const char* data, size_t size,
         int dest_id);
     void asio_conn_close(void* p);
 
@@ -80,9 +80,9 @@ function _M._remove_th(tid)
     -- local add_free = not is_thtbl_array or tid != (#th_tbl - 1)
 
     local th = th_tbl[tid]
-    th_to_id[th] = nil    
+    th_to_id[th] = nil
     th_tbl[tid] = nil
-    --if add_free then 
+    --if add_free then
     th_free_id[#th_free_id + 1] = tid
     --end
 end
@@ -101,7 +101,7 @@ local function _create_th()
     return tid, th
 end
 
-function _M.spawn_light_thread(func, ...) 
+function _M.spawn_light_thread(func, ...)
     local tid, th = _create_th()
     local ok, err = resume(th, tid, func, ...)
     if not ok then
@@ -164,7 +164,7 @@ local function _make_connection(cpoint)
     return con
 end
 
-local function _evt_disp(evt) 
+local function _evt_disp(evt)
     if evt.type == EVT_ACCEPT then
 
         local handler = handler_tbl[evt.dest_id]
@@ -181,7 +181,6 @@ local function _evt_disp(evt)
         if not ok then
             print( debug.traceback( th, err ))
         end
-        --read write的error应该直接关闭th转到close事件
 
     end
 end
@@ -200,8 +199,8 @@ end
 function _M.server(ip, port, accept_handler)
     handler_tbl[port] = accept_handler
     local sv = asio_c.asio_new_server(ip, port)
-    if sv == nil then 
-        return nil 
+    if sv == nil then
+        return nil
     else
         return ffi.gc(sv, asio_c.asio_delete_server)
     end
