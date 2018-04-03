@@ -26,7 +26,7 @@ function connection_th(con)
     con:close()
 end
 
-local s = asio.server('localhost', 1234, function(con)
+local s = asio.server('127.0.0.1', 1234, function(con)
     -- light threads running asynchronously at various I/O operation.
     asio.spawn_light_thread(connection_th, con)
 end)
@@ -40,7 +40,7 @@ Client side:
 local asio = require 'asio'
 
 local ping_send = function(text)
-    local con = asio.connect('127.0.0.1', '1234')
+    local con = asio.connect('localhost', '1234')
     con:write(text)
     con:read(10)
     con:close()
@@ -58,7 +58,7 @@ Your code needs to execute in Light Thread, actually Light Threads are Lua corou
 
 When goes to a non-blocking operation, the current Light Thread will wait for completion (block), and then it switches to the other available Light Thread to continue execution, or handle new connection.
 
-If you want to use multithreading, Client side can be simply achieved by multiple Lua State (use like torch/threads); Server side not supported yet (but easy to implement by Lua State pool).
+If you want to use multithreading, Client side can be simply achieved by multiple Lua State (use like torch/threads); Server side not supported yet, but easy to implement by Lua State pool. Although because non-blocking, there is high concurrency even in a single thread.
 <!-- Server side has **threads** parameters in **asio.server** function. -->
 
 # Building
