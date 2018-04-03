@@ -111,6 +111,14 @@ If there are no errors, return **data(lua str)**; otherwise, returns **nil, err_
 
 ----
 
+**data, err_msg = conn:read_some()**
+
+Read binary data until one or more bytes. This is a non-blocking operation.
+
+If there are no errors, return **data(lua str)**; otherwise, returns **nil, err_msg(lua str)**.
+
+----
+
 **ok, err_msg = conn:write(data)**
 
 Write the data(lua str) to connection. This is a non-blocking operation.

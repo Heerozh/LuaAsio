@@ -20,7 +20,7 @@ do io.write('---- Light Thread Test ----')
     assert(asio._get_free_tid() == 4)
     assert(asio._get_tid('t2') == 2)
 
-    --remove 1 
+    --remove 1
     asio._remove_th(2)
     assert(asio._get_free_tid() == 2)
 
@@ -80,43 +80,43 @@ end
 --------------------------------------------------
 
 --test network
-for i=1,1000
+--for i=1,1000
 do io.write('---- C Asio Test ----')
 
     -- non-ip address should return nil
-    assert( not asio.server('localhost', 1234) ) 
-    -- not in light thread 
-    assert( pcall( asio.connect, 'localhost', 1234) == false ) 
+    assert( not asio.server('localhost', 1234) )
+    -- not in light thread
+    assert( pcall( asio.connect, 'localhost', 1234) == false )
     -- connect faile
     local con = 'not set con'
-    asio.spawn_light_thread(function() 
+    asio.spawn_light_thread(function()
         con = asio.connect('0.0.0.1', '1234')
     end)
-    asio.run()   
+    asio.run()
     assert(con == nil, con)
 
     -- server
     function connection_th(con)
         --print('server')
-        local data, err = con:read(5)  
+        local data, err = con:read(5)
         --print('server', data, 'readed', e)
-        assert(data == 'ping1' or data == 'ping2' or data == 'ping3')      
-        con:write(data .. '-pong')  
+        assert(data == 'ping1' or data == 'ping2' or data == 'ping3')
+        con:write(data .. '-pong')
         con:close()
     end
-    
-    local s = asio.server('127.0.0.1', 31234, function(con) 
-        asio.spawn_light_thread(connection_th, con) 
+
+    local s = asio.server('127.0.0.1', 31234, function(con)
+        asio.spawn_light_thread(connection_th, con)
     end)
     local total =0
-    local ping_send = function(text) 
+    local ping_send = function(text)
         --print('client', text)
         local con, e = asio.connect('localhost', '31234')
         assert(con, e)
         --print('client', text, 'conned', e)
         local ok, e = con:write(text)
-        local data, err = con:read(10)
-        assert(data == 'ping1-pong' or data == 'ping2-pong' or data == 'ping3-pong')         
+        local data, err = con:read_some()
+        assert(data == 'ping1-pong' or data == 'ping2-pong' or data == 'ping3-pong')
         con:close()
         total = total + 1
         if total ==3 then
@@ -127,7 +127,7 @@ do io.write('---- C Asio Test ----')
     asio.spawn_light_thread(ping_send, 'ping1')
     asio.spawn_light_thread(ping_send, 'ping2')
     asio.spawn_light_thread(ping_send, 'ping3')
-    asio.run() 
+    asio.run()
 
 end io.write(' \t\t[OK]\n')
 
@@ -153,18 +153,18 @@ do io.write('---- C Asio Bench ----')
             con:write('123456789|123456789|123456789|123456789|123456789|')
             total = total + 1
         end
-        con:close()      
+        con:close()
         if total == sends*connects then
             asio.destory_server(s)
         end
     end
-    s = asio.server('127.0.0.1', 31234, function(con) 
-        asio.spawn_light_thread(server_bench, con) 
+    s = asio.server('127.0.0.1', 31234, function(con)
+        asio.spawn_light_thread(server_bench, con)
     end)
     for i = 1,connects do
         asio.spawn_light_thread(client_bench)
     end
-    asio.run() 
+    asio.run()
 
 end io.write(' \t\t[OK]\n')
 

@@ -5,6 +5,9 @@ local yield = coroutine.yield
 local resume = coroutine.resume
 local running = coroutine.running
 local setmetatable = setmetatable
+local type = type
+local tostring = tostring
+local assert = assert
 
 local ok, new_table = pcall(require, "table.new")
 if not ok then new_table = function() return {} end end
@@ -35,6 +38,7 @@ ffi.cdef[[
         int dest_id);
     void asio_delete_connection(void* p);
     void asio_conn_read(void* p, size_t size, int dest_id);
+    void asio_conn_read_some(void* p, int dest_id);
     void asio_conn_write(void* p, const char* data, size_t size,
         int dest_id);
     void asio_conn_close(void* p);
@@ -132,6 +136,18 @@ function conn_M:read(n)
     end
 end
 
+function conn_M:read_some()
+    local th = running()
+    assert(th, 'need be called in light thread.')
+    asio_c.asio_conn_read_some(self.cpoint, th_to_id[th])
+    local ok, data = yield()
+    if ok then
+        return data
+    else
+        return nil, data
+    end
+end
+
 function conn_M:write(data)
     local th = running()
     assert(th, 'need be called in light thread.')
@@ -186,6 +202,9 @@ local function _evt_disp(evt)
 end
 
 function _M.connect(host, port)
+    if type(port) == 'number' then
+        port = tostring(port)
+    end
     local th = running()
     assert(th, 'need be called in light thread.')
     asio_c.asio_new_connect(host, port, th_to_id[th])
