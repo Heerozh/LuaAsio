@@ -78,26 +78,18 @@ function forward(from_com, to_con)
     to_con:close()
 end
 
-function downstream_read(down_con, up_con)
-    forward(down_con, up_con)
-end
-
-function upstream_read(up_con, down_con)
-    forward(up_con, down_con)
-end
-
-function connection_th(down_con)
-    local up_con = asio.connect('upstream.host.addr', '80')
-    if up_con then
-        asio.spawn_light_thread(downstream_read, down_con, up_con)
-        asio.spawn_light_thread(upstream_read, up_con, down_con)
+function connection_th(downstream)
+    local upstream = asio.connect('upstream.host.addr', '80')
+    if upstream then
+        asio.spawn_light_thread(forward, downstream, upstream)
+        asio.spawn_light_thread(forward, upstream, downstream)
     else
-        down_con:close()
+        downstream:close()
     end
 end
 
-local s = asio.server('127.0.0.1', 1080, function(con)
-    asio.spawn_light_thread(connection_th, con)
+local s = asio.server('127.0.0.1', 1080, function(downstream)
+    asio.spawn_light_thread(connection_th, downstream)
 end)
 
 asio.run()
