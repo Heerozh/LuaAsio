@@ -13,7 +13,7 @@ Tested on windows<!-- , ubuntu, openwrt.  -->
 # Usage
 
 Server side:
-```
+```Lua
 local asio = require 'asio'
 
 function connection_th(con)
@@ -36,7 +36,7 @@ asio.run()
 ```
 
 Client side:
-```
+```Lua
 local asio = require 'asio'
 
 local ping_send = function(text)
@@ -60,6 +60,48 @@ When goes to a non-blocking operation, the current Light Thread will wait for co
 
 If you want to use multithreading, Client side can be simply achieved by multiple Lua State (use like torch/threads); Server side not supported yet, but easy to implement by Lua State pool. Although because non-blocking, there is high concurrency even in a single thread.
 <!-- Server side has **threads** parameters in **asio.server** function. -->
+
+# Example for full duplex
+
+```Lua
+local asio = require 'asio'
+
+function forward(from_com, to_con)
+    while true do
+        local data = from_com:read_some()
+        if not data then break end
+
+        local ok = to_con:write(data)
+        if not ok then break end
+    end
+    from_com:close()
+    to_con:close()
+end
+
+function downstream_read(down_con, up_con)
+    forward(down_con, up_con)
+end
+
+function upstream_read(up_con, down_con)
+    forward(up_con, down_con)
+end
+
+function connection_th(down_con)
+    local up_con = asio.connect('upstream.host.addr', '80')
+    if up_con then
+        asio.spawn_light_thread(downstream_read, down_con, up_con)
+        asio.spawn_light_thread(upstream_read, up_con, down_con)
+    else
+        down_con:close()
+    end
+end
+
+local s = asio.server('127.0.0.1', 1080, function(con)
+    asio.spawn_light_thread(connection_th, con)
+end)
+
+asio.run()
+```
 
 # Building
 
