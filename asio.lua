@@ -1,3 +1,4 @@
+-- Copyright (C) by Jianhao Zhang (heeroz)
 
 local co_create = coroutine.create
 local co_status = coroutine.status
@@ -33,6 +34,7 @@ ffi.cdef[[
     } event_message;
     event_message* asio_get(int wait_sec);
     bool asio_stopped();
+    void asio_sleep(int dest_id, unsigned int sec);
 
     void* asio_new_connect(const char* host, const char* port,
         int dest_id);
@@ -42,6 +44,7 @@ ffi.cdef[[
     void asio_conn_write(void* p, const char* data, size_t size,
         int dest_id);
     void asio_conn_close(void* p);
+    void* asio_get_original_dst(void* p);
 
     void* asio_new_server(const char* ip, int port);
     void asio_delete_server(void* p);
@@ -114,14 +117,16 @@ function _M.spawn_light_thread(func, ...)
     return th
 end
 
-
 ------------------connection------------------------
 
 local conn_M = {}
-local conn_mt = { __index = conn_M }
+conn_M.__index = conn_M
+
+local sockaddr_size = 128
 
 function conn_M:get_original_dst(data)
-    return asio_c.get_original_dst(self.cpoint)
+    local addr = asio_c.asio_get_original_dst(self.cpoint)
+    return ffi.string(addr, sockaddr_size)
 end
 
 function conn_M:read(n)
@@ -144,7 +149,8 @@ function conn_M:read_some()
     if ok then
         return data
     else
-        return nil, data
+        local ok, err = yield()
+        return data, err
     end
 end
 
@@ -176,7 +182,7 @@ local function _make_connection(cpoint)
     local con = {
         cpoint = ffi.gc(cpoint, asio_c.asio_delete_connection),
     }
-    setmetatable(con, conn_mt)
+    setmetatable(con, conn_M)
     return con
 end
 
@@ -227,6 +233,14 @@ end
 
 function _M.destory_server(server_holder)
     asio_c.asio_delete_server(ffi.gc(server_holder, nil))
+end
+
+function _M.sleep(sec)
+    local th = running()
+    assert(th, 'need be called in light thread.')
+    asio_c.asio_sleep(th_to_id[th], sec)
+    yield()
+    return
 end
 
 function _M.run()

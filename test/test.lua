@@ -109,6 +109,7 @@ do io.write('---- C Asio Test ----')
         asio.spawn_light_thread(connection_th, con)
     end)
     local total =0
+    local test_async = 0
     local ping_send = function(text)
         --print('client', text)
         local con, e = asio.connect('localhost', '31234')
@@ -117,7 +118,20 @@ do io.write('---- C Asio Test ----')
         local ok, e = con:write(text)
         local data, err = con:read_some()
         assert(data == 'ping1-pong' or data == 'ping2-pong' or data == 'ping3-pong')
+        -- test read_some err
+        local data, err = con:read_some()
+        assert(#data == 0)
+        assert(err == 'End of file')
+        -- close and destory
         con:close()
+
+        --test sleep
+        test_async = test_async + 1
+        local beg = os.clock()
+        asio.sleep(1)
+        assert(os.clock() - beg >= 1, os.clock() - beg)
+        assert(test_async == 3)
+
         total = total + 1
         if total ==3 then
             asio.destory_server(s)

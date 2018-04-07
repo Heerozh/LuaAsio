@@ -1,6 +1,6 @@
 # LuaAsio
 
-Simple transparent non-blocking, high concurrency I/O for Luajit.
+Simple transparent non-blocking, high concurrency I/O for Luajit. Only 500+ lines.
 
 There are no callbacks, Asynchronous happens when you perform a non-blocking operation.
 
@@ -134,6 +134,12 @@ Server are automatically closed when the return value (**holder**) are garbage c
 Connect to the host port. This is a non-blocking operation.
 
 If there are no errors, return **conn(module)**; otherwise, returns **nil, err_msg(lua str)**.
+
+----
+
+**asio.sleep(sec)**
+
+Suspends the execution of the current light thread until the duration have elapse. This is a non-blocking operation.
 
 ----
 
