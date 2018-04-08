@@ -1,2 +1,2 @@
 include/* linguist-vendored
-*.cpp crlf diff
+*.cpp -text crlf diff
