@@ -7,10 +7,10 @@ del *.obj
 del *.ilk
 
 @set LJCOMPILE=cl /nologo /c /O2 /W3 /DLUAASIO_EXPORTS /D_WINDOWS /D_USRDLL /MD /EHsc
-@set LJLINK=link /nologo
+@set LJLINK=link /nologo /OPT:REF /OPT:ICF
 
 %LJCOMPILE% /Zi  /I ".\include" /I \ *.cpp
-%LJLINK% /DLL /DEBUG /OPT:REF /OPT:ICF /out:asio.dll *.obj
+%LJLINK% /DLL /DEBUG /out:asio.dll *.obj
 
 del *.obj
 del *.ilk
