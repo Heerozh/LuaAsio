@@ -129,8 +129,8 @@ do io.write('---- C Asio Test ----')
         test_async = test_async + 1
         local beg = os.clock()
         asio.sleep(1)
-        assert(os.clock() - beg >= 1, os.clock() - beg)
-        assert(test_async == 3)
+        assert(os.clock() - beg >= 0.99, os.clock() - beg)
+        assert(test_async == 3, test_async)
 
         total = total + 1
         if total ==3 then
@@ -151,13 +151,26 @@ do io.write('---- C Asio Bench ----')
     --benchmark
     local connects = 10
     local sends = 1000
-    local function client_bench()
+    local con_first = nil --test close crash
+    local function client_bench(i)
         local con, e = asio.connect('localhost', '31234')
+        if i == 1 then
+            con_first = con
+            con = nil
+            local a,b=con_first:read(500)
+            return
+        end
         for i=1,sends do
             con:write('123456789|123456789|123456789|123456789|123456789|')
             con:read(50)
         end
         con:close()
+        if i == 2 then
+            con_first:close()
+            local c = con_first.cpoint
+            con_first = 1
+            collectgarbage('collect')
+        end
     end
     local total = 0
     local s
@@ -176,7 +189,7 @@ do io.write('---- C Asio Bench ----')
         asio.spawn_light_thread(server_bench, con)
     end)
     for i = 1,connects do
-        asio.spawn_light_thread(client_bench)
+        asio.spawn_light_thread(client_bench, i)
     end
     asio.run()
 

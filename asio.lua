@@ -155,6 +155,7 @@ function conn_M:read_some()
 end
 
 function conn_M:write(data)
+    assert(data and #data > 0)
     local th = running()
     assert(th, 'need be called in light thread.')
     asio_c.asio_conn_write(self.cpoint, data, #data, th_to_id[th])
@@ -213,11 +214,10 @@ function _M.connect(host, port)
     end
     local th = running()
     assert(th, 'need be called in light thread.')
-    asio_c.asio_new_connect(host, port, th_to_id[th])
-    local cpoint, msg = yield()
-    if cpoint == nil then return nil, msg end
-
+    local cpoint = asio_c.asio_new_connect(host, port, th_to_id[th])
     local con = _make_connection(cpoint)
+    local ok, msg = yield()
+    if ok == nil then return nil, msg end
     return con
 end
 
