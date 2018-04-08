@@ -36,8 +36,9 @@ ffi.cdef[[
     bool asio_stopped();
     void asio_sleep(int dest_id, unsigned int sec);
 
-    void* asio_new_connect(const char* host, const char* port,
-        int dest_id);
+    void* asio_new_connect(const char* host, unsigned short port,
+        int dest_id, bool v6);
+    void* asio_new_connect_sockaddr(char* p, int dest_id);
     void asio_delete_connection(void* p);
     void asio_conn_read(void* p, size_t size, int dest_id);
     void asio_conn_read_some(void* p, int dest_id);
@@ -171,6 +172,7 @@ function conn_M:close()
     asio_c.asio_conn_close(self.cpoint)
     self.cpoint = nil
     setmetatable(self, nil)
+    self.close = function() end
 end
 ------------------asio------------------------
 
@@ -208,13 +210,19 @@ local function _evt_disp(evt)
     end
 end
 
-function _M.connect(host, port)
-    if type(port) == 'number' then
-        port = tostring(port)
+function _M.connect(host, port, use_v6)
+    if type(port) == 'string' then
+        port = tonumber(port)
     end
     local th = running()
     assert(th, 'need be called in light thread.')
-    local cpoint = asio_c.asio_new_connect(host, port, th_to_id[th])
+    local cpoint
+    if port == nil and #host >= 64 then
+        cpoint = asio_c.asio_new_connect_sockaddr(host, th_to_id[th])
+    else
+        cpoint = asio_c.asio_new_connect(host, port, th_to_id[th],
+            use_v6 and true or false)
+    end
     local con = _make_connection(cpoint)
     local ok, msg = yield()
     if ok == nil then return nil, msg end

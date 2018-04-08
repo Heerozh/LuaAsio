@@ -66,9 +66,9 @@ private:
     string _read_buff;
 
 private:
-    void do_connect(const tcp::resolver::results_type& endpoints, int dest_id) {
-        asio::async_connect(_socket, endpoints,
-            [this, dest_id](std::error_code ec, tcp::endpoint)
+    void do_connect(const tcp::endpoint& endpoint, int dest_id) {
+        _socket.async_connect(endpoint,
+            [this, dest_id](std::error_code ec)
         {
             if (!ec) {
                 this->connected = true;
@@ -84,10 +84,10 @@ public:
     bool connected;
 
     connection(asio::io_context& io_context,
-        const tcp::resolver::results_type& endpoints, int dest_id)
+        const tcp::endpoint& endpoint, int dest_id)
         : _socket(io_context), connected(false)
     {
-        do_connect(endpoints, dest_id);
+        do_connect(endpoint, dest_id);
     }
 
     connection(tcp::socket socket)
@@ -235,7 +235,7 @@ DLL_EXPORT void* asio_new_server(const char* ip, int port) {
         auto svr = new server(io_context, ip_addr, port);
         return svr;
     } catch (std::exception& e) {
-        std::cerr << "LuaAsio Exception: " << e.what() << "\n";
+        std::cerr << "LuaAsio Exception new_server: " << e.what() << "\n";
         return NULL;
     }
 }
@@ -249,11 +249,47 @@ DLL_EXPORT void asio_delete_connection(void* p) {
 }
 
 extern "C"
-DLL_EXPORT void* asio_new_connect(const char* host, const char* port, int dest_id) {
-    tcp::resolver resolver(io_context);
-    auto endpoints = resolver.resolve(host, port);
+DLL_EXPORT void* asio_new_connect(const char* host, u_short port,
+     int dest_id, bool v6)
+{
+    asio::ip::tcp::endpoint ep;
+    try {
+        ep = asio::ip::tcp::endpoint(
+            asio::ip::address::from_string(host), port);
+    } catch (...) {
+        tcp::resolver resolver(io_context);
+        auto r = resolver.resolve(host, std::to_string(port).c_str());
+        for (auto i = r.begin(); i != r.end(); ++i){
+            ep = i->endpoint();
+            if (ep.address().is_v6() && v6)
+                break;
+        }
+    }
     auto conn = new boost::shared_ptr<connection>(
-        new connection(io_context, endpoints, dest_id));
+        new connection(io_context, ep, dest_id));
+    return conn;
+}
+
+extern "C"
+DLL_EXPORT void* asio_new_connect_sockaddr(char* p, int dest_id) {
+    auto addr = (sockaddr_storage*)p;
+    asio::ip::tcp::endpoint ep;
+    if (AF_INET6 == addr->ss_family) {
+        size_t size = sizeof(in6_addr);
+        auto addr6 = (sockaddr_in6*)addr;
+        auto port = addr6->sin6_port;
+        asio::ip::address_v6::bytes_type bytes;
+        memcpy(&bytes[0], &(addr6->sin6_addr), size);
+        ep = asio::ip::tcp::endpoint(
+            asio::ip::address_v6(bytes), port);
+    } else {
+        auto ip = ((sockaddr_in*)addr)->sin_addr;
+        auto port = ((sockaddr_in*)addr)->sin_port;
+        ep = asio::ip::tcp::endpoint(
+            asio::ip::address_v4(ip.S_un.S_addr), port);
+    }
+    auto conn = new boost::shared_ptr<connection>(
+        new connection(io_context, ep, dest_id));
     return conn;
 }
 
@@ -270,7 +306,9 @@ DLL_EXPORT void asio_conn_read_some(void* p, int dest_id) {
 }
 
 extern "C"
-DLL_EXPORT void asio_conn_write(void* p, const char* data, size_t size, int dest_id) {
+DLL_EXPORT void asio_conn_write(void* p, const char* data,
+    size_t size, int dest_id)
+{
     auto conn = (connection::pointer*)p;
     (*conn)->write(std::move(string(data, size)), dest_id);
 }
@@ -296,7 +334,10 @@ DLL_EXPORT void* asio_get_original_dst(void* p) {
 extern "C"
 DLL_EXPORT void asio_sleep(int dest_id, unsigned int sec) {
     auto timer = boost::shared_ptr<asio::deadline_timer>(
-        new asio::deadline_timer(io_context, boost::posix_time::seconds(sec)) );
+        new asio::deadline_timer(
+            io_context,
+            boost::posix_time::seconds(sec)
+        ));
     timer->async_wait(
         [timer, dest_id](const asio::error_code& ec)
         {
@@ -339,12 +380,12 @@ DLL_EXPORT event_message_for_ffi* asio_get(int wait_sec) {
 
         static string buff;
         static event_message_for_ffi rtn;
-        auto &evt = g_evt_queue.front();
-        rtn.type = evt.type;
-        rtn.dest_id = evt.dest_id;
-        rtn.source = evt.source;
-        buff = evt.data;
-        rtn.data = buff.c_str();
+        auto &evt    = g_evt_queue.front();
+        rtn.type     = evt.type;
+        rtn.dest_id  = evt.dest_id;
+        rtn.source   = evt.source;
+        buff         = evt.data;
+        rtn.data     = buff.c_str();
         rtn.data_len = buff.size();
         g_evt_queue.pop_front();
         return &rtn;
