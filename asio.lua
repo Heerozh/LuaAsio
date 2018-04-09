@@ -18,7 +18,8 @@ if not ok then new_table = function() return {} end end
 local ok, ffi = pcall(require, "ffi")
 assert(ok, 'need use luajit yet')
 
-local ok, asio_c = pcall(ffi.load, 'asio.so')
+local ok, asio_c = pcall(ffi.load, 'asio')
+if not ok then ok, asio_c = pcall(ffi.load, './libasio.so') end
 if not ok then _, asio_c = pcall(ffi.load, 'asio.dll') end
 assert(asio_c, 'load c lib failed.')
 

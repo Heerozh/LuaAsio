@@ -204,7 +204,11 @@ public:
     server(asio::io_context& io_context,
         const asio::ip::address &ip, int port)
         :
-        _acceptor(io_context, tcp::endpoint(ip, port), false),
+        _acceptor(io_context, tcp::endpoint(ip, port)
+#ifdef _WINDOWS
+        , false
+#endif
+        ),
         port(port)
     {
         do_accept();

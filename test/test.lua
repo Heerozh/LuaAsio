@@ -127,9 +127,9 @@ do io.write('---- C Asio Test ----')
 
         --test sleep
         test_async = test_async + 1
-        local beg = os.clock()
+        local beg = os.time()
         asio.sleep(1)
-        assert(os.clock() - beg >= 0.99, os.clock() - beg)
+        assert((os.time() - beg) >= 0.99, os.time() - beg)
         assert(test_async == 3, test_async)
 
         total = total + 1

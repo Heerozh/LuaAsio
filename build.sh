@@ -1,1 +1,1 @@
-gcc -g -O3 -shared -std=c++11 -fPIC -I./include luaAsio.cpp -o asio.so 
+$(HOST_CC)gcc -g -O3 -shared -std=c++11 -fPIC -I./include luaAsio.cpp -lstdc++ -lpthread -o libasio.so 
