@@ -1,6 +1,6 @@
 # LuaAsio
 
-Simple transparent non-blocking, high concurrency I/O for Luajit. Only 500+ lines.
+Simple transparent non-blocking, high concurrency I/O for LuaJIT. Only 500+ lines.
 
 There are no callbacks, Asynchronous happens when you perform a non-blocking operation.
 
@@ -19,10 +19,8 @@ local asio = require 'asio'
 function connection_th(con)
     -- Issues a synchronous, but non-blocking I/O operation.
     local data = con:read(5)
-
     -- Still non-blocking
     con:write(data .. '-pong')
-
     con:close()
 end
 
@@ -75,7 +73,6 @@ function forward(from_con, to_con)
         local data = from_con:read_some()
         if not data then break end
         --you can require "resty.aes" add aes_256_cfb:en/decrypt(data) here
-
         local ok = to_con:write(data)
         if not ok then break end
     end
@@ -87,7 +84,6 @@ function connection_th(downstream)
     if not upstream then return end
     local ok = upstream:write(dest_addr)
     if not ok then return end
-
     asio.spawn_light_thread(forward, downstream, upstream)
     asio.spawn_light_thread(forward, upstream, downstream)
 end
@@ -146,7 +142,7 @@ asio.run()
 
 Listening port starts accepting connections.
 
-`accept_handler(conn)` is your callback function when new connection is established. If you want to perform non-blocking operations on `conn`, you need call `spawn_light_thread`.
+`accept_handler(conn)` is your callback function when new connection is established. If you want to perform non-blocking operations on `conn`, you need call `spawn_light_thread` first.
 
 <!-- If **threads** greater than 1, will create a thread pool and randomly assign Light Threads to one of them. There is no inter-thread communication method, so your need other lua moudle to communication between each Light Thread.  -->
 
@@ -154,11 +150,11 @@ Server are automatically closed when the return value `holder` are garbage colle
 
 ----
 
-**conn, err_msg = asio.connect(host, port, use_v6=false)**
+**conn, err_msg = asio.connect(host, port, resolve_v6=false)**
 
 Connect to the host port. This is a non-blocking operation.
 
-Resolve host name is not a non-blocking operation yet, So **use IP address**.
+Resolve host name is **not** a non-blocking operation yet, So **use IP address**.
 
 If there are no errors, return `conn`(module); otherwise, returns `nil`, `err_msg`(lua str).
 

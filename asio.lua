@@ -18,7 +18,7 @@ if not ok then new_table = function() return {} end end
 local ok, ffi = pcall(require, "ffi")
 assert(ok, 'need use luajit yet')
 
-ok, asio_c = pcall(ffi.load, 'asio.so')
+local ok, asio_c = pcall(ffi.load, 'asio.so')
 if not ok then _, asio_c = pcall(ffi.load, 'asio.dll') end
 assert(asio_c, 'load c lib failed.')
 
@@ -46,6 +46,7 @@ ffi.cdef[[
         int dest_id);
     void asio_conn_close(void* p);
     void* asio_get_original_dst(void* p);
+    const char* asio_addr_to_str(char* p);
 
     void* asio_new_server(const char* ip, int port);
     void asio_delete_server(void* p);
@@ -210,7 +211,7 @@ local function _evt_disp(evt)
     end
 end
 
-function _M.connect(host, port, use_v6)
+function _M.connect(host, port, resolve_v6)
     if type(port) == 'string' then
         port = tonumber(port)
     end
@@ -221,12 +222,16 @@ function _M.connect(host, port, use_v6)
         cpoint = asio_c.asio_new_connect_sockaddr(host, th_to_id[th])
     else
         cpoint = asio_c.asio_new_connect(host, port, th_to_id[th],
-            use_v6 and true or false)
+            resolve_v6 and true or false)
     end
     local con = _make_connection(cpoint)
     local ok, msg = yield()
     if ok == nil then return nil, msg end
     return con
+end
+
+function _M.addr_to_str(addr)
+    return ffi.string(asio_c.asio_addr_to_str(addr))
 end
 
 function _M.server(ip, port, accept_handler)

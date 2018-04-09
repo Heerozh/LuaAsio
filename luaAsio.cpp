@@ -270,24 +270,42 @@ DLL_EXPORT void* asio_new_connect(const char* host, u_short port,
     return conn;
 }
 
-extern "C"
-DLL_EXPORT void* asio_new_connect_sockaddr(char* p, int dest_id) {
-    auto addr = (sockaddr_storage*)p;
-    asio::ip::tcp::endpoint ep;
+void get_addr_ip_port(sockaddr_storage* addr,
+    asio::ip::address &ip, u_short &port)
+{
     if (AF_INET6 == addr->ss_family) {
         size_t size = sizeof(in6_addr);
         auto addr6 = (sockaddr_in6*)addr;
-        auto port = addr6->sin6_port;
+        port = addr6->sin6_port;
         asio::ip::address_v6::bytes_type bytes;
         memcpy(&bytes[0], &(addr6->sin6_addr), size);
-        ep = asio::ip::tcp::endpoint(
-            asio::ip::address_v6(bytes), port);
+        ip = asio::ip::address_v6(bytes);
     } else {
-        auto ip = ((sockaddr_in*)addr)->sin_addr;
-        auto port = ((sockaddr_in*)addr)->sin_port;
-        ep = asio::ip::tcp::endpoint(
-            asio::ip::address_v4(ip.S_un.S_addr), port);
+        auto sip = ((sockaddr_in*)addr)->sin_addr;
+        port = ((sockaddr_in*)addr)->sin_port;
+        ip = asio::ip::address_v4(sip.S_un.S_addr);
     }
+}
+
+extern "C"
+DLL_EXPORT const char* asio_addr_to_str(char* p) {
+    static std::string rtn;
+    auto addr = (sockaddr_storage*)p;
+    asio::ip::address ip;
+    u_short port;
+    get_addr_ip_port(addr, ip, port);
+    rtn = ip.to_string();
+    rtn += std::to_string(port);
+    return rtn.c_str();
+}
+
+extern "C"
+DLL_EXPORT void* asio_new_connect_sockaddr(char* p, int dest_id) {
+    auto addr = (sockaddr_storage*)p;
+    asio::ip::address ip;
+    u_short port;
+    get_addr_ip_port(addr, ip, port);
+    asio::ip::tcp::endpoint ep(ip, port);
     auto conn = new boost::shared_ptr<connection>(
         new connection(io_context, ep, dest_id));
     return conn;
