@@ -1,1 +1,1 @@
-g++ -g -O3 -shared -fPIC luaAsio.cpp -o asio.so 
+gcc -g -O3 -shared -std=c++11 -fPIC -I./include luaAsio.cpp -o asio.so 

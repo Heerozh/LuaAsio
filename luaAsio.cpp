@@ -18,6 +18,7 @@
 #include <deque>
 #include <map>
 #include <iostream>
+#include <utility>
 
 #include <asio.hpp>
 #include <boost/shared_ptr.hpp>
@@ -26,8 +27,9 @@ using asio::ip::tcp;
 using namespace std;
 
 #ifndef _WINDOWS
-//  #include <sys/types.h>
-//  #include <sys/socket.h>
+#   include <linux/netfilter_ipv4.h>
+//# include <linux/netfilter_ipv6/ip6_tables.h>
+#   define IP6T_SO_ORIGINAL_DST            80
 #endif
 
 //--------------------------event----------------------------
@@ -156,13 +158,11 @@ public:
 #ifdef _WINDOWS
         return false;
 #else
-        int size = sizeof(sockaddr_storage);
+        socklen_t size = sizeof(sockaddr_storage);
         int fd   = _socket.native_handle();
-        int error = asio::detail::socket_ops::getsockopt(
-            fd, SOL_IPV6, IP6T_SO_ORIGINAL_DST, destaddr, &size);
+        int error = getsockopt( fd, SOL_IPV6, IP6T_SO_ORIGINAL_DST, destaddr, &size);
         if (error) {
-            error = asio::detail::socket_ops::getsockopt(
-                fd, SOL_IP, SO_ORIGINAL_DST, destaddr, &size);
+            error = getsockopt( fd, SOL_IP, SO_ORIGINAL_DST, destaddr, &size);
             if (error) {
                 return false;
             }
@@ -281,9 +281,12 @@ void get_addr_ip_port(sockaddr_storage* addr,
         memcpy(&bytes[0], &(addr6->sin6_addr), size);
         ip = asio::ip::address_v6(bytes);
     } else {
-        auto sip = ((sockaddr_in*)addr)->sin_addr;
-        port = ((sockaddr_in*)addr)->sin_port;
-        ip = asio::ip::address_v4(sip.S_un.S_addr);
+        size_t size = sizeof(in_addr);
+        auto addr4 = (sockaddr_in*)addr;
+        port = addr4->sin_port;
+        asio::ip::address_v4::bytes_type bytes;
+        memcpy(&bytes[0], &(addr4->sin_addr), size);
+        ip = asio::ip::address_v4(bytes);
     }
 }
 
