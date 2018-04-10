@@ -13,6 +13,9 @@
 #define BOOST_REGEX_NO_LIB
 #define ASIO_HAS_BOOST_DATE_TIME
 #define BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE
+#ifdef _ARM
+#   define ASIO_DISABLE_STD_FUTURE
+#endif
 
 #include <cstdlib>
 #include <deque>
