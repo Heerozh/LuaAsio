@@ -78,18 +78,18 @@ function forward(from_con, to_con)
     end
 end
 
-function connection_th(downstream)
-    local dest_addr = downstream:get_original_dst()
-    local upstream = asio.connect('serverhost', 5678)
-    if not upstream then return end
-    local ok = upstream:write(dest_addr)
+function connection_th(upstream)
+    local dest_addr = upstream:get_original_dst()
+    local proxy = asio.connect('serverhost', 5678)
+    if not proxy then return end
+    local ok = proxy:write(dest_addr)
     if not ok then return end
-    asio.spawn_light_thread(forward, downstream, upstream)
-    asio.spawn_light_thread(forward, upstream, downstream)
+    asio.spawn_light_thread(forward, proxy, upstream)
+    asio.spawn_light_thread(forward, upstream, proxy)
 end
 
-local s = asio.server('127.0.0.1', 1234, function(downstream)
-    asio.spawn_light_thread(connection_th, downstream)
+local s = asio.server('127.0.0.1', 1234, function(upstream)
+    asio.spawn_light_thread(connection_th, upstream)
 end)
 
 asio.run()
@@ -99,16 +99,16 @@ Server:
 ```Lua
 local asio = require 'asio'
 
-function connection_th(downstream)
-    local dest_addr = downstream:read(128)
-    local upstream = asio.connect(dest_addr)
-    if not upstream then return end
+function connection_th(upstream)
+    local dest_addr = upstream:read(128)
+    local downstream = asio.connect(dest_addr)
+    if not downstream then return end
     asio.spawn_light_thread(forward, downstream, upstream)
     asio.spawn_light_thread(forward, upstream, downstream)
 end
 
-local s = asio.server('127.0.0.1', 5678, function(downstream)
-    asio.spawn_light_thread(connection_th, downstream)
+local s = asio.server('127.0.0.1', 5678, function(upstream)
+    asio.spawn_light_thread(connection_th, upstream)
 end)
 
 asio.run()
@@ -128,6 +128,12 @@ asio.run()
 
 ```
 ./build.sh
+```
+
+## ARM Cross Compile
+
+```
+./build_arm.sh
 ```
 
 # Unit Test
