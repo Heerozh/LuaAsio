@@ -196,7 +196,7 @@ do io.write('---- C Asio Bench ----')
 end io.write(' \t\t[OK]\n')
 
 --tproxy test
-if ffi.os ~= "Windows" then io.write('---- TPROXY Test ----')
+if ffi.os ~= "Windows" then io.write('---- REDIRECT Test ----')
 
     --set iptable
     -- os.execute("iptables -t mangle -N TESTLUAASIO")
