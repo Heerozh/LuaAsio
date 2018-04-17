@@ -195,4 +195,50 @@ do io.write('---- C Asio Bench ----')
 
 end io.write(' \t\t[OK]\n')
 
+--tproxy test
+if ffi.os ~= "Windows" then io.write('---- TPROXY Test ----')
+
+    --set iptable
+    -- os.execute("iptables -t mangle -N TESTLUAASIO")
+    -- os.execute("iptables -t mangle -A TESTLUAASIO -p tcp --dport 21234 -j TPROXY --on-port 31234 --tproxy-mark 0x07")
+    -- os.execute("iptables -t mangle -A PREROUTING -p tcp -j TESTLUAASIO")
+
+    -- os.execute("iptables -t nat -N TESTLUAASIO")
+    -- os.execute("iptables -t nat -A TESTLUAASIO -p tcp --dport 21234 -j REDIRECT --to-port 31234")
+    -- os.execute("iptables -t nat -A PREROUTING -p tcp -j TESTLUAASIO") --network
+    -- os.execute("iptables -t nat -A OUTPUT -p tcp -j TESTLUAASIO")     --local loopback
+
+    --start server
+    local function test_origin_ip(con)
+        local dest_addr = con:get_original_dst()
+        assert(asio.addr_to_str(dest_addr) == '8.8.8.8:21234')
+        --print(asio.addr_to_str(dest_addr))
+        con:write('123')
+        con:close()
+    end
+    s = asio.server('127.0.0.1', 31234, function(con)
+        asio.spawn_light_thread(test_origin_ip, con)
+    end)
+
+    --connect test
+    asio.spawn_light_thread(function()
+        local con, e = asio.connect('8.8.8.8', '21234')
+        con:read(3)
+        con:close()
+        asio.destory_server(s)
+    end)
+    asio.run()
+
+    --remove iptable
+    -- os.execute("iptables -t nat -D OUTPUT -p tcp -j TESTLUAASIO >/dev/null 2>&1")
+    -- os.execute("iptables -t nat -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
+    -- os.execute("iptables -t nat -F TESTLUAASIO >/dev/null 2>&1 && iptables -t nat -X TESTLUAASIO >/dev/null 2>&1")
+
+    -- os.execute("iptables -t mangle -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
+    -- os.execute("iptables -t mangle -F TESTLUAASIO >/dev/null 2>&1 && iptables -t mangle -X TESTLUAASIO >/dev/null 2>&1")
+
+
+io.write(' \t\t[OK]\n') end
+
+
 print('All Tests passed.')

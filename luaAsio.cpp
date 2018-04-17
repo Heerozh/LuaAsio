@@ -283,14 +283,14 @@ void get_addr_ip_port(sockaddr_storage* addr,
     if (AF_INET6 == addr->ss_family) {
         size_t size = sizeof(in6_addr);
         auto addr6 = (sockaddr_in6*)addr;
-        port = addr6->sin6_port;
+        port = ntohs(addr6->sin6_port);
         asio::ip::address_v6::bytes_type bytes;
         memcpy(&bytes[0], &(addr6->sin6_addr), size);
         ip = asio::ip::address_v6(bytes);
     } else {
         size_t size = sizeof(in_addr);
         auto addr4 = (sockaddr_in*)addr;
-        port = addr4->sin_port;
+        port = ntohs(addr4->sin_port);
         asio::ip::address_v4::bytes_type bytes;
         memcpy(&bytes[0], &(addr4->sin_addr), size);
         ip = asio::ip::address_v4(bytes);
@@ -298,13 +298,13 @@ void get_addr_ip_port(sockaddr_storage* addr,
 }
 
 extern "C"
-DLL_EXPORT const char* asio_addr_to_str(char* p) {
+DLL_EXPORT const char* asio_addr_to_str(const char* p) {
     static std::string rtn;
     auto addr = (sockaddr_storage*)p;
     asio::ip::address ip;
     u_short port;
     get_addr_ip_port(addr, ip, port);
-    rtn = ip.to_string();
+    rtn = ip.to_string() + ":";
     rtn += std::to_string(port);
     return rtn.c_str();
 }

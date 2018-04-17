@@ -47,7 +47,7 @@ ffi.cdef[[
         int dest_id);
     void asio_conn_close(void* p);
     void* asio_get_original_dst(void* p);
-    const char* asio_addr_to_str(char* p);
+    const char* asio_addr_to_str(const char* p);
 
     void* asio_new_server(const char* ip, int port);
     void asio_delete_server(void* p);
