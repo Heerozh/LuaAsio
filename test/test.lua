@@ -203,20 +203,21 @@ if ffi.os ~= "Windows" then io.write('---- TPROXY Test ----')
     -- os.execute("iptables -t mangle -A TESTLUAASIO -p tcp --dport 21234 -j TPROXY --on-port 31234 --tproxy-mark 0x07")
     -- os.execute("iptables -t mangle -A PREROUTING -p tcp -j TESTLUAASIO")
 
-    -- os.execute("iptables -t nat -N TESTLUAASIO")
-    -- os.execute("iptables -t nat -A TESTLUAASIO -p tcp --dport 21234 -j REDIRECT --to-port 31234")
-    -- os.execute("iptables -t nat -A PREROUTING -p tcp -j TESTLUAASIO") --network
-    -- os.execute("iptables -t nat -A OUTPUT -p tcp -j TESTLUAASIO")     --local loopback
+    os.execute("iptables -t nat -N TESTLUAASIO")
+    os.execute("iptables -t nat -A TESTLUAASIO -p tcp --dport 21234 -j REDIRECT --to-port 31234")
+    os.execute("iptables -t nat -A PREROUTING -p tcp -j TESTLUAASIO") --network
+    os.execute("iptables -t nat -A OUTPUT -p tcp -j TESTLUAASIO")     --local loopback
 
     --start server
+    local dest_addr_str = 'get original destaddr faild.'
     local function test_origin_ip(con)
         local dest_addr = con:get_original_dst()
-        assert(asio.addr_to_str(dest_addr) == '8.8.8.8:21234')
+        dest_addr_str = asio.addr_to_str(dest_addr)
         --print(asio.addr_to_str(dest_addr))
         con:write('123')
         con:close()
     end
-    s = asio.server('127.0.0.1', 31234, function(con)
+    s = asio.server('0.0.0.0', 31234, function(con)
         asio.spawn_light_thread(test_origin_ip, con)
     end)
 
@@ -228,11 +229,12 @@ if ffi.os ~= "Windows" then io.write('---- TPROXY Test ----')
         asio.destory_server(s)
     end)
     asio.run()
+    assert(dest_addr_str == '8.8.8.8:21234', dest_addr_str)
 
     --remove iptable
-    -- os.execute("iptables -t nat -D OUTPUT -p tcp -j TESTLUAASIO >/dev/null 2>&1")
-    -- os.execute("iptables -t nat -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
-    -- os.execute("iptables -t nat -F TESTLUAASIO >/dev/null 2>&1 && iptables -t nat -X TESTLUAASIO >/dev/null 2>&1")
+    os.execute("iptables -t nat -D OUTPUT -p tcp -j TESTLUAASIO >/dev/null 2>&1")
+    os.execute("iptables -t nat -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
+    os.execute("iptables -t nat -F TESTLUAASIO >/dev/null 2>&1 && iptables -t nat -X TESTLUAASIO >/dev/null 2>&1")
 
     -- os.execute("iptables -t mangle -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
     -- os.execute("iptables -t mangle -F TESTLUAASIO >/dev/null 2>&1 && iptables -t mangle -X TESTLUAASIO >/dev/null 2>&1")
