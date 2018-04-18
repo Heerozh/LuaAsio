@@ -240,7 +240,7 @@ if ffi.os ~= "Windows" then io.write('---- REDIRECT Test ----')
     -- os.execute("iptables -t mangle -F TESTLUAASIO >/dev/null 2>&1 && iptables -t mangle -X TESTLUAASIO >/dev/null 2>&1")
 
 
-io.write(' \t\t[OK]\n') end
+io.write(' \t[OK]\n') end
 
 
 print('All Tests passed.')

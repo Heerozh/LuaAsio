@@ -39,7 +39,7 @@ ffi.cdef[[
 
     void* asio_new_connect(const char* host, unsigned short port,
         int dest_id, bool v6);
-    void* asio_new_connect_sockaddr(char* p, int dest_id);
+    void* asio_new_connect_sockaddr(const char* p, int dest_id);
     void asio_delete_connection(void* p);
     void asio_conn_read(void* p, size_t size, int dest_id);
     void asio_conn_read_some(void* p, int dest_id);

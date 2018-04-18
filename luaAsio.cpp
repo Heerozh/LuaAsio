@@ -310,7 +310,7 @@ DLL_EXPORT const char* asio_addr_to_str(const char* p) {
 }
 
 extern "C"
-DLL_EXPORT void* asio_new_connect_sockaddr(char* p, int dest_id) {
+DLL_EXPORT void* asio_new_connect_sockaddr(const char* p, int dest_id) {
     auto addr = (sockaddr_storage*)p;
     asio::ip::address ip;
     u_short port;
