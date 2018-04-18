@@ -232,6 +232,7 @@ function _M.connect(host, port, resolve_v6)
 end
 
 function _M.addr_to_str(addr)
+    assert(#addr >= 64)
     return ffi.string(asio_c.asio_addr_to_str(addr))
 end
 
