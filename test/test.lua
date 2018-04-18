@@ -205,7 +205,7 @@ if ffi.os ~= "Windows" then io.write('---- REDIRECT Test ----')
 
     os.execute("iptables -t nat -N TESTLUAASIO")
     os.execute("iptables -t nat -A TESTLUAASIO -p tcp --dport 21234 -j REDIRECT --to-port 31234")
-    os.execute("iptables -t nat -A PREROUTING -p tcp -j TESTLUAASIO") --network
+    -- os.execute("iptables -t nat -A PREROUTING -p tcp -j TESTLUAASIO") --network
     os.execute("iptables -t nat -A OUTPUT -p tcp -j TESTLUAASIO")     --local loopback
 
     --start server
@@ -233,7 +233,7 @@ if ffi.os ~= "Windows" then io.write('---- REDIRECT Test ----')
 
     --remove iptable
     os.execute("iptables -t nat -D OUTPUT -p tcp -j TESTLUAASIO >/dev/null 2>&1")
-    os.execute("iptables -t nat -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
+    -- os.execute("iptables -t nat -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
     os.execute("iptables -t nat -F TESTLUAASIO >/dev/null 2>&1 && iptables -t nat -X TESTLUAASIO >/dev/null 2>&1")
 
     -- os.execute("iptables -t mangle -D PREROUTING -p tcp -j TESTLUAASIO >/dev/null 2>&1")
