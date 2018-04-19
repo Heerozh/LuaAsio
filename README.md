@@ -126,6 +126,7 @@ end)
 asio.run()
 ```
 
+Finally, you need to use `iptables` redirect tcp to the client, and use `https-dns-proxy` to convert dns from udp to tcp.
 
 
 # Building
