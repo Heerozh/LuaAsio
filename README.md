@@ -202,7 +202,7 @@ If there are no errors, return `data`(lua str); otherwise, returns `nil`, `err_m
 
 Read binary data until one or more bytes. This is a non-blocking operation.
 
-If there are no errors, return `data`(lua str); otherwise, returns `nil`, `err_msg`(lua str).
+If there are no errors, return `data`(lua str[size>0]); otherwise, returns `data`(lua str[size>=0]), `err_msg`(lua str).
 
 ----
 
