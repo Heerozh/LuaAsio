@@ -8,7 +8,7 @@ Lightweight, low resource usage, available for embedded devices.
 
 Based on ```Boost.Asio (Header-only) ``` Library.
 
-Tested on windows, ubuntu<!-- , openwrt.  -->
+Tested on windows, ubuntu, openwrt.
 
 # Usage
 
