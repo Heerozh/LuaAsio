@@ -66,7 +66,7 @@ Big effect, so simple!
 
 Client/Router:
 ```Lua
---you can replace the following with aes_256_cfb8 by require "resty.aes"
+-- you can replace the following with aes_256_cfb8 by require "resty.aes"
 local bit = require 'bit'
 local function xor_str(str, key)
     return (string.gsub(str, "(.)", function (c)
@@ -86,8 +86,6 @@ function forward(from_con, to_con)
     from_con:close()
     to_con:close()
 end
-
------------------
 
 local asio = require 'asio'
 
