@@ -64,6 +64,26 @@ void push_event(char type, int id, void* source, const string &data) {
 }
 
 //--------------------------client--------------------------
+class shared_const_buffer
+{
+public:
+  // Construct from a std::string.
+  explicit shared_const_buffer(const std::string& data)
+    : data_(new std::vector<char>(data.begin(), data.end())),
+      buffer_(asio::buffer(*data_))
+  {
+  }
+
+  // Implement the ConstBufferSequence requirements.
+  typedef asio::const_buffer value_type;
+  typedef const asio::const_buffer* const_iterator;
+  const asio::const_buffer* begin() const { return &buffer_; }
+  const asio::const_buffer* end() const { return &buffer_ + 1; }
+
+private:
+  boost::shared_ptr<std::vector<char> > data_;
+  asio::const_buffer buffer_;
+};
 
 class connection : public boost::enable_shared_from_this<connection> {
 private:
@@ -102,8 +122,8 @@ public:
 
     void write(const string& data, int dest_id) {
         auto self = shared_from_this();
-        asio::async_write(_socket,
-            asio::buffer(data, data.length()),
+        shared_const_buffer buffer(data);
+        asio::async_write(_socket, buffer,
             [self, dest_id](std::error_code ec, std::size_t /*length*/)
         {
             if (!ec) {

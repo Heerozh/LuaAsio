@@ -175,10 +175,11 @@ function conn_M:close()
     self.cpoint = nil
     setmetatable(self, nil)
     self.read       = function() return nil, 'Already closed.' end
-    self.read_some  = function() return nil, 'Already closed.' end
-    self.write      = function() return nil, 'Already closed.' end
-    self.close = function() end
+    self.read_some  = self.read
+    self.write      = self.read
+    self.close      = function() end
 end
+
 ------------------asio------------------------
 
 local EVT_ACCEPT = 1
