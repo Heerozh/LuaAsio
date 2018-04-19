@@ -66,29 +66,42 @@ Big effect, so simple!
 
 Client/Router:
 ```Lua
-local asio = require 'asio'
+--you can replace the following with aes_256_cfb8 by require "resty.aes"
+local bit = require 'bit'
+local function xor_str(str, key)
+    return (string.gsub(str, "(.)", function (c)
+        return string.char( bit.bxor(string.byte(c), key) )
+    end))
+end
 
 function forward(from_con, to_con)
     while true do
-        local data = from_con:read_some()
-        if not data then break end
-        --you can require "resty.aes" add aes_256_cfb:en/decrypt(data) here
-        local ok = to_con:write(data)
-        if not ok then break end
+        local data, rerr, werr, _
+        data, rerr = from_con:read_some()
+        if data and #data > 0 then
+            _, werr = to_con:write(xor_str(data, 0x79))
+        end
+        if rerr or werr then break end
     end
+    from_con:close()
+    to_con:close()
 end
+
+-----------------
+
+local asio = require 'asio'
 
 function connection_th(upstream)
     local dest_addr = upstream:get_original_dst()
-    local proxy = asio.connect('serverhost', 5678)
+    local proxy = asio.connect(remote_host, remote_port)
     if not proxy then return end
-    local ok = proxy:write(dest_addr)
+    local ok = proxy:write(xor_str(dest_addr, 0x79))
     if not ok then return end
     asio.spawn_light_thread(forward, proxy, upstream)
     asio.spawn_light_thread(forward, upstream, proxy)
 end
 
-local s = asio.server('127.0.0.1', 1234, function(upstream)
+local s = asio.server('0.0.0.0', local_port, function(upstream)
     asio.spawn_light_thread(connection_th, upstream)
 end)
 
@@ -101,13 +114,14 @@ local asio = require 'asio'
 
 function connection_th(upstream)
     local dest_addr = upstream:read(128)
-    local downstream = asio.connect(dest_addr)
+    if not dest_addr then return end
+    local downstream = asio.connect(xor_str(dest_addr, 0x79))
     if not downstream then return end
     asio.spawn_light_thread(forward, downstream, upstream)
     asio.spawn_light_thread(forward, upstream, downstream)
 end
 
-local s = asio.server('127.0.0.1', 5678, function(upstream)
+local s = asio.server(listen_host, listen_port, function(upstream)
     asio.spawn_light_thread(connection_th, upstream)
 end)
 
