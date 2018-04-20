@@ -35,7 +35,7 @@ ffi.cdef[[
     } event_message;
     event_message* asio_get(int wait_sec);
     bool asio_stopped();
-    void asio_sleep(int dest_id, unsigned int sec);
+    void asio_sleep(int dest_id, double sec);
 
     void* asio_new_connect(const char* host, unsigned short port,
         int dest_id, bool v6);

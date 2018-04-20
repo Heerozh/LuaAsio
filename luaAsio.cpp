@@ -380,11 +380,11 @@ DLL_EXPORT void* asio_get_original_dst(void* p) {
 //----------------------
 
 extern "C"
-DLL_EXPORT void asio_sleep(int dest_id, unsigned int sec) {
+DLL_EXPORT void asio_sleep(int dest_id, double sec) {
     auto timer = boost::shared_ptr<asio::deadline_timer>(
         new asio::deadline_timer(
             io_context,
-            boost::posix_time::seconds(sec)
+            boost::posix_time::millisec((int64_t)(sec * 1000))
         ));
     timer->async_wait(
         [timer, dest_id](const asio::error_code& ec)

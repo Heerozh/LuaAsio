@@ -1,6 +1,6 @@
 # LuaAsio
 
-Simple transparent non-blocking, high concurrency I/O for LuaJIT. Only 500+ lines.
+Simple transparent non-blocking, high concurrency I/O for LuaJIT. Only 600+ lines.
 
 There are no callbacks, Asynchronous happens when you perform a non-blocking operation.
 
