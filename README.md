@@ -66,12 +66,14 @@ Big effect, so simple!
 
 Client/Router:
 ```Lua
--- you can replace the following with aes_256_cfb8 by require "resty.aes"
+-- you should replace the following with aes_256_cfb8 by require "resty.aes"
 local bit = require 'bit'
 local function xor_str(str, key)
-    return (string.gsub(str, "(.)", function (c)
-        return string.char( bit.bxor(string.byte(c), key) )
-    end))
+    local rtn = table.new(#str, 0)
+    for i = 1, #str do
+        rtn[#rtn + 1] = string.char( bit.bxor(string.byte(str, i), key) )
+    end
+    return table.concat( rtn )
 end
 
 function forward(from_con, to_con)
