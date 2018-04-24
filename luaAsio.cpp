@@ -1,6 +1,5 @@
 ﻿#ifdef _WINDOWS
 #    include <SDKDDKVer.h>
-#
 #    ifdef LUAASIO_EXPORTS
 #        define DLL_EXPORT __declspec(dllexport)
 #    endif
@@ -27,6 +26,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 using asio::ip::tcp;
+using asio::ip::udp;
 using namespace std;
 
 #ifndef _WINDOWS
@@ -63,40 +63,40 @@ void push_event(char type, int id, void* source, const string &data) {
         g_evt_queue.pop_front();
 }
 
-//--------------------------client--------------------------
+//----------------------write buffer-------------------------
+
 class shared_const_buffer
 {
 public:
-  // Construct from a std::string.
-  explicit shared_const_buffer(const std::string& data)
-    : data_(new std::vector<char>(data.begin(), data.end())),
-      buffer_(asio::buffer(*data_))
-  {
-  }
+    // Construct from a std::string.
+    explicit shared_const_buffer(const std::string& data)
+        : _data(new std::vector<char>(data.begin(), data.end())),
+          _buffer(asio::buffer(*_data))
+    {
+    }
 
-  // Implement the ConstBufferSequence requirements.
-  typedef asio::const_buffer value_type;
-  typedef const asio::const_buffer* const_iterator;
-  const asio::const_buffer* begin() const { return &buffer_; }
-  const asio::const_buffer* end() const { return &buffer_ + 1; }
+    // Implement the ConstBufferSequence requirements.
+    typedef asio::const_buffer value_type;
+    typedef const asio::const_buffer* const_iterator;
+    const asio::const_buffer* begin() const { return &_buffer; }
+    const asio::const_buffer* end() const { return &_buffer + 1; }
 
 private:
-  boost::shared_ptr<std::vector<char> > data_;
-  asio::const_buffer buffer_;
+    boost::shared_ptr<std::vector<char> > _data;
+    asio::const_buffer _buffer;
 };
+
+//--------------------------client--------------------------
 
 class connection : public boost::enable_shared_from_this<connection> {
 private:
     tcp::socket _socket;
     string _read_buff;
 
-private:
     void do_connect(const tcp::endpoint& endpoint, int dest_id) {
-        _socket.async_connect(endpoint,
-            [this, dest_id](std::error_code ec)
+        _socket.async_connect(endpoint, [this, dest_id](std::error_code ec)
         {
             if (!ec) {
-                this->connected = true;
                 push_event(EVT_CONTINUE, dest_id, this, "");
             } else {
                 push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
@@ -106,17 +106,16 @@ private:
 
 public:
     typedef boost::shared_ptr<connection> pointer;
-    bool connected;
 
     connection(asio::io_context& io_context,
         const tcp::endpoint& endpoint, int dest_id)
-        : _socket(io_context), connected(false)
+        : _socket(io_context)
     {
         do_connect(endpoint, dest_id);
     }
 
     connection(tcp::socket socket)
-        : _socket(std::move(socket)), connected(true)
+        : _socket(std::move(socket))
     {
     }
 
@@ -124,32 +123,30 @@ public:
         auto self = shared_from_this();
         shared_const_buffer buffer(data);
         asio::async_write(_socket, buffer,
-            [self, dest_id](std::error_code ec, std::size_t /*length*/)
-        {
-            if (!ec) {
-                push_event(EVT_CONTINUE, dest_id, self.get(), "");
-            } else {
-                self->_socket.close();
-                self->connected = false;
-                push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
-            }
-        });
+            [self, dest_id](std::error_code ec, std::size_t)
+            {
+                if (!ec) {
+                    push_event(EVT_CONTINUE, dest_id, self.get(), "");
+                } else {
+                    self->_socket.close();
+                    push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
+                }
+            });
     }
 
     void read(size_t size, int dest_id) {
         auto self = shared_from_this();
         _read_buff.resize(size);
         asio::async_read(_socket, asio::buffer(_read_buff),
-            [self, dest_id](std::error_code ec, std::size_t length)
-        {
-            if (!ec) {
-                push_event(EVT_CONTINUE, dest_id, self.get(), self->_read_buff);
-            } else {
-                self->_socket.close();
-                self->connected = false;
-                push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
-            }
-        });
+            [self, dest_id](std::error_code ec, std::size_t)
+            {
+                if (!ec) {
+                    push_event(EVT_CONTINUE, dest_id, self.get(), self->_read_buff);
+                } else {
+                    self->_socket.close();
+                    push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
+                }
+            });
     }
 
     void read_some(int dest_id) {
@@ -158,23 +155,21 @@ public:
         _read_buff.resize(max_buff_size);
         _socket.async_read_some(asio::buffer(_read_buff),
             [self, dest_id](std::error_code ec, std::size_t bytes_transferred)
-        {
-            if (!ec) {
-                self->_read_buff.resize(bytes_transferred);
-                push_event(EVT_CONTINUE, dest_id, self.get(), self->_read_buff);
-            } else {
-                self->_socket.close();
-                self->connected = false;
-                self->_read_buff.resize(bytes_transferred);
-                push_event(EVT_CONTINUE, dest_id, NULL, self->_read_buff);
-                push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
-            }
-        });
+            {
+                if (!ec) {
+                    self->_read_buff.resize(bytes_transferred);
+                    push_event(EVT_CONTINUE, dest_id, self.get(), self->_read_buff);
+                } else {
+                    self->_socket.close();
+                    self->_read_buff.resize(bytes_transferred);
+                    push_event(EVT_CONTINUE, dest_id, NULL, self->_read_buff);
+                    push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
+                }
+            });
     }
 
     void close() {
         _socket.close();
-        connected = false;
     }
 
     bool get_original_dst(struct sockaddr_storage *destaddr) {
@@ -182,7 +177,7 @@ public:
         return false;
 #else
         socklen_t size = sizeof(sockaddr_storage);
-        int fd   = _socket.native_handle();
+        int fd    = _socket.native_handle();
         int error = getsockopt( fd, SOL_IPV6, IP6T_SO_ORIGINAL_DST, destaddr, &size);
         if (error) {
             error = getsockopt( fd, SOL_IP, SO_ORIGINAL_DST, destaddr, &size);
@@ -200,13 +195,11 @@ public:
 
 class server{
 private:
-
     tcp::acceptor _acceptor;
 
 private:
     void do_accept() {
-        _acceptor.async_accept(
-            [this](std::error_code ec, tcp::socket socket)
+        _acceptor.async_accept([this](std::error_code ec, tcp::socket socket)
         {
             if (!ec) {
                 auto conn = new boost::shared_ptr<connection>(
@@ -226,13 +219,12 @@ public:
 
     server(asio::io_context& io_context,
         const asio::ip::address &ip, int port)
-        :
-        _acceptor(io_context, tcp::endpoint(ip, port)
+        : port(port),
+          _acceptor(io_context, tcp::endpoint(ip, port)
 #ifdef _WINDOWS
-        , false
+          , false
 #endif
-        ),
-        port(port)
+          )
     {
         do_accept();
     }
@@ -279,9 +271,9 @@ extern "C"
 DLL_EXPORT void* asio_new_connect(const char* host, u_short port,
      int dest_id, bool v6)
 {
-    asio::ip::tcp::endpoint ep;
+    tcp::endpoint ep;
     try {
-        ep = asio::ip::tcp::endpoint(
+        ep = tcp::endpoint(
             asio::ip::address::from_string(host), port);
     } catch (...) {
         tcp::resolver resolver(io_context);
@@ -335,7 +327,7 @@ DLL_EXPORT void* asio_new_connect_sockaddr(const char* p, int dest_id) {
     asio::ip::address ip;
     u_short port;
     get_addr_ip_port(addr, ip, port);
-    asio::ip::tcp::endpoint ep(ip, port);
+    tcp::endpoint ep(ip, port);
     auto conn = new boost::shared_ptr<connection>(
         new connection(io_context, ep, dest_id));
     return conn;
