@@ -59,6 +59,7 @@ void push_event(char type, int id, void* source, const string &data) {
     evt.data = data;
     g_evt_queue.push_back(std::move(evt));
 
+    // just in case, would not be triggered
     while (g_evt_queue.size() > MAX_EVT_MSG)
         g_evt_queue.pop_front();
 }
@@ -92,6 +93,7 @@ class connection : public boost::enable_shared_from_this<connection> {
 private:
     tcp::socket _socket;
     string _read_buff;
+    const size_t MAX_BUFF_SIZE = 10240;
 
     void do_connect(const tcp::endpoint& endpoint, int dest_id) {
         _socket.async_connect(endpoint, [this, dest_id](std::error_code ec)
@@ -137,6 +139,8 @@ public:
     void read(size_t size, int dest_id) {
         auto self = shared_from_this();
         _read_buff.resize(size);
+        if (_read_buff.capacity() > MAX_BUFF_SIZE)
+            _read_buff.shrink_to_fit();
         asio::async_read(_socket, asio::buffer(_read_buff),
             [self, dest_id](std::error_code ec, std::size_t)
             {
@@ -151,8 +155,8 @@ public:
 
     void read_some(int dest_id) {
         auto self = shared_from_this();
-        const size_t max_buff_size = 1024 * 1024;
-        _read_buff.resize(max_buff_size);
+        _read_buff.resize(MAX_BUFF_SIZE);
+        _read_buff.shrink_to_fit();
         _socket.async_read_some(asio::buffer(_read_buff),
             [self, dest_id](std::error_code ec, std::size_t bytes_transferred)
             {
