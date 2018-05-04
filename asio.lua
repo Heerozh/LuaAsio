@@ -129,6 +129,7 @@ local sockaddr_size = 128
 
 function conn_M:get_original_dst(data)
     local addr = asio_c.asio_get_original_dst(self.cpoint)
+    if addr == nil then return nil end
     return ffi.string(addr, sockaddr_size)
 end
 
