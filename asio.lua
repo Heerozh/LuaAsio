@@ -181,6 +181,57 @@ function conn_M:close()
     self.close      = function() end
 end
 
+------------------udp------------------------
+
+-- local udp_M = {}
+-- udp_M.__index = udp_M
+
+-- function _M.udp(host, port)
+--     if type(port) == 'string' then
+--         port = tonumber(port)
+--     end
+--     local th = running()
+--     assert(th, 'need be called in light thread.')
+
+--     local cpoint
+--     if port == nil and #host >= 64 then
+--         cpoint = asio_c.asio_new_udp_sockaddr(host, th_to_id[th])
+--     else
+--         cpoint = asio_c.asio_new_udp(host, port, th_to_id[th])
+--     end
+
+--     local udp = {
+--         cpoint = ffi.gc(cpoint, asio_c.asio_delete_udp),
+--     }
+--     setmetatable(udp, udp_M)
+--     return udp
+-- end
+
+-- function _M:receive()
+--     local th = running()
+--     assert(th, 'need be called in light thread.')
+--     asio_c.asio_udp_receive(self.cpoint, n, th_to_id[th])
+--     local ok, data = yield()
+--     if ok then
+--         return data
+--     else
+--         return nil, data
+--     end
+-- end
+
+-- function _M:send(data)
+--     assert(data and #data > 0)
+--     local th = running()
+--     assert(th, 'need be called in light thread.')
+--     asio_c.asio_conn_write(self.cpoint, data, #data, th_to_id[th])
+--     local ok, err_msg = yield()
+--     if ok then
+--         return true
+--     else
+--         return nil, err_msg
+--     end
+-- end
+
 ------------------asio------------------------
 
 local EVT_ACCEPT = 1

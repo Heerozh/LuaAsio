@@ -235,6 +235,54 @@ public:
 
 };
 
+// class udp_socket : public boost::enable_shared_from_this<udp_socket>
+// {
+// private:
+//     udp::socket _socket;
+//     udp::endpoint _remote_endpoint;
+//     std::string _recv_buffer;
+
+// public:
+//     udp_socket(asio::io_service& io_service,
+//         const asio::ip::address &ip, int port)
+//     : _socket(io_service, udp::endpoint(ip, port))
+//     {
+//     }
+
+//     void send(const udp::endpoint &ep, const string& data, int dest_id)
+//     {
+//         shared_const_buffer buffer(data.c_str(), data.length());
+//         _socket.async_send_to(buffer, ep,
+//             [this, dest_id](std::error_code ec, std::size_t)
+//             {
+//                 if (!ec) {
+//                     push_event(EVT_CONTINUE, dest_id, this, "");
+//                 } else {
+//                     push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
+//                 }
+//             });
+//     }
+
+//     void receive(int dest_id)
+//     {
+//         auto self = shared_from_this();
+//         const size_t max_buff_size = 1024 * 64;
+//         _recv_buffer.resize(max_buff_size);
+//         _socket.async_receive_from(
+//             asio::buffer(_recv_buffer), _remote_endpoint,
+//             [self, dest_id](std::error_code ec, std::size_t bytes_recvd)
+//         {
+//             //todo: if recv size > buffsize will raise error too.
+//             if (!ec && bytes_recvd > 0) {
+//                 self->_recv_buffer.resize(bytes_recvd);
+//                 push_event(EVT_CONTINUE, dest_id, self.get(), self->_recv_buffer);
+//             }else{
+//                 push_event(EVT_CONTINUE, dest_id, NULL, ec.message());
+//             }
+//         });
+//     }
+// };
+
 //--------------------------api--------------------------
 
 asio::io_context io_context;
@@ -292,6 +340,28 @@ DLL_EXPORT void* asio_new_connect(const char* host, u_short port,
         new connection(io_context, ep, dest_id));
     return conn;
 }
+
+// extern "C"
+// DLL_EXPORT void* asio_new_udp(const char* host, u_short port,
+//      int dest_id, bool v6)
+// {
+//     tcp::endpoint ep;
+//     try {
+//         ep = tcp::endpoint(
+//             asio::ip::address::from_string(host), port);
+//     } catch (...) {
+//         tcp::resolver resolver(io_context);
+//         auto r = resolver.resolve(host, std::to_string(port).c_str());
+//         for (auto i = r.begin(); i != r.end(); ++i){
+//             ep = i->endpoint();
+//             if (ep.address().is_v6() && v6)
+//                 break;
+//         }
+//     }
+//     auto conn = new boost::shared_ptr<udp_socket>(
+//         new udp_socket(io_context, ep, dest_id));
+//     return conn;
+// }
 
 void get_addr_ip_port(sockaddr_storage* addr,
     asio::ip::address &ip, u_short &port)
